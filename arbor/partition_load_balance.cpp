@@ -67,6 +67,41 @@ domain_decomposition partition_load_balance(
     auto gid_part = make_partition(
         gid_divisions, transform_view(make_span(num_domains), dom_size));
 
+    // Global gj_connection table
+
+    // Generate a local gj_connection table.
+    // The table is indexed by the index of the target gid in the gid_part of that domain.
+    // If gid_part[domain_id] = [a, b[; local_gj_connection of gid `x` is at index `x-a`.
+    const auto dom_range = gid_part[domain_id];
+    std::vector<std::vector<cell_gid_type>> local_gj_connection_table(dom_range.second-dom_range.first);
+    for (auto gid: make_span(gid_part[domain_id])) {
+        for (const auto& c: rec.gap_junctions_on(gid)) {
+            local_gj_connection_table[gid-dom_range.first].push_back(c.peer.gid);
+        }
+    }
+    // Sort the inner vectors of gj_connections.
+    for (auto& gid_conns: local_gj_connection_table) {
+        util::sort(gid_conns);
+    }
+
+    // Gather the global gj_connection table.
+    // The global gj_connection table after gathering is indexed by gid.
+    auto global_gj_connection_table = ctx->distributed->gather_gj_connections(local_gj_connection_table);
+
+    // Modify the global gj_connection table to make all gj_connections bidirectional.
+    for (auto gid: make_span(global_gj_connection_table.size())) {
+        const auto& local_conns = global_gj_connection_table[gid];
+        for (auto peer: local_conns) {
+            auto& peer_conns = global_gj_connection_table[peer];
+            // If gid is not in the peer connection table insert it such that
+            // the vector remains sorted.
+            auto it = std::lower_bound(peer_conns.begin(), peer_conns.end(), gid);
+            if (it == peer_conns.end() || *it != gid) {
+                peer_conns.insert(it, gid);
+            }
+        }
+    }
+
     // Local load balance
 
     std::vector<std::vector<cell_gid_type>> super_cells; //cells connected by gj
@@ -78,7 +113,7 @@ domain_decomposition partition_load_balance(
     // Connected components algorithm using BFS
     std::queue<cell_gid_type> q;
     for (auto gid: make_span(gid_part[domain_id])) {
-        if (!rec.gap_junctions_on(gid).empty()) {
+        if (!global_gj_connection_table[gid].empty()) {
             // If cell hasn't been visited yet, must belong to new super_cell
             // Perform BFS starting from that cell
             if (!visited.count(gid)) {
@@ -90,11 +125,11 @@ domain_decomposition partition_load_balance(
                     q.pop();
                     cg.push_back(element);
                     // Adjacency list
-                    auto conns = rec.gap_junctions_on(element);
-                    for (auto c: conns) {
-                        if (!visited.count(c.peer.gid)) {
-                            visited.insert(c.peer.gid);
-                            q.push(c.peer.gid);
+                    auto conns = global_gj_connection_table[element];
+                    for (const auto& peer: conns) {
+                        if (!visited.count(peer)) {
+                            visited.insert(peer);
+                            q.push(peer);
                         }
                     }
                 }
