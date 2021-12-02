@@ -15,7 +15,7 @@ class CL_opt:
                                'gpu': 'none',
                                'vec': False,
                                'arch': 'none',
-                               'neuroml': True,
+                               'neuroml': False,
                                'bundled': True,
                                'makejobs': 2}
 
