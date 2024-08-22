@@ -1,5 +1,6 @@
 #include <utility>
 #include <string>
+#include <iostream>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -80,9 +81,10 @@ inline api_error_type host_unregister(ARGS &&... args) {
     return cudaHostUnregister(std::forward<ARGS>(args)...);
 }
 
-template <typename... ARGS>
-inline api_error_type device_malloc(ARGS &&... args) {
-    return cudaMalloc(std::forward<ARGS>(args)...);
+template <typename T>
+inline api_error_type device_malloc(T arg, size_t size) {
+   std::cerr << "GPU alloc = " << size << '\n';
+    return cudaMalloc(arg, size);
 }
 
 template <typename... ARGS>
