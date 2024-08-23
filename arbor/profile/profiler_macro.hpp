@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <arbor/profile/profiler.hpp>
 
 #ifdef ARB_HAVE_PROFILING
@@ -16,8 +17,10 @@
 
 #else
 
-    #define PE(name)
-    #define PL()
+//    #define PE(name)
+//    #define PL()
+    #define PE(name) std::cerr << "[>] " << #name << '\n'
+    #define PL() std::cerr << "[<]\n"
 
 #endif
 

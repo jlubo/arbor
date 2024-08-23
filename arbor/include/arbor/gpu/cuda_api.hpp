@@ -81,9 +81,9 @@ inline api_error_type host_unregister(ARGS &&... args) {
     return cudaHostUnregister(std::forward<ARGS>(args)...);
 }
 
-template <typename T>
-inline api_error_type device_malloc(T arg, size_t size) {
-   std::cerr << "GPU alloc = " << size << '\n';
+template <typename... ARGS>
+inline api_error_type device_malloc(void ** arg, size_t size) {
+    std::cerr << "[+] alloc=" << arg << " size=" << size << '\n';
     return cudaMalloc(arg, size);
 }
 
