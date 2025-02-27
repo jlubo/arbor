@@ -5,8 +5,7 @@ import arbor as A
 from arbor import units as U
 import numpy as np
 try:
-    from scipy.sparse import diags
-    from scipy.sparse.linalg import spsolve
+    import scipy.sparse as sps
     scipy_found = True
 except ModuleNotFoundError:
     scipy_found = False
@@ -162,8 +161,9 @@ class TestDiffusionScaling(unittest.TestCase):
     # Method that sets up and simulates the diffusion of particles with an independent SciPy implementation that
     # solves the diffusion equation via the Crank-Nicolson method.
     # - concentration: flag that specifies if particle concentrations are considered (instead of amounts)
+    # - use_scipy [optional]: flag that specifies if SciPy can be used for sparse solving
     # - return: the distribution of the particle amount/concentration over space and time
-    def simulate_independent(self, concentration):
+    def simulate_independent(self, concentration, use_scipy=False):
         # set Crank-Nicolson coefficient, initial conditions, stimulation
         alpha = self.D * (self.dt * 1e-3) / (2 * (self.dx * 1e-6) ** 2)
         # x = np.linspace(0, self.L*1e-6, self.Nx)
@@ -187,8 +187,14 @@ class TestDiffusionScaling(unittest.TestCase):
         main_diag_B[-1] = 1 - alpha
 
         # obtain the final matrices
-        A = diags([main_diag, off_diag, off_diag], [0, -1, 1], format="csr")
-        B = diags([main_diag_B, off_diag_B, off_diag_B], [0, -1, 1], format="csr")
+        if use_scipy:
+            # using sparse representation with SciPy
+            A = sps.diags([main_diag, off_diag, off_diag], [0, -1, 1], format="csr")
+            B = sps.diags([main_diag_B, off_diag_B, off_diag_B], [0, -1, 1], format="csr")
+        else:
+            # using dense representation via NumPy array
+            A = np.diag(main_diag) + np.diag(off_diag, k=-1) + np.diag(off_diag, k=1)
+            B = np.diag(main_diag_B) + np.diag(off_diag_B, k=-1) + np.diag(off_diag_B, k=1)
 
         # simulation loop
         for n in range(self.Nt):
@@ -199,18 +205,20 @@ class TestDiffusionScaling(unittest.TestCase):
             b = B @ u
 
             # solve the linear system A @ u = b
-            u = spsolve(A, b)
+            if use_scipy:
+                u = sps.linalg.spsolve(A, b)
+            else:
+                u = np.linalg.solve(np.array(A), np.array(b))
 
         return data
 
     # test_diffusion_scaling_amount
     # Test: compare the amount of diffusive particles in Arbor and independent implementation
-    @unittest.skipIf(not scipy_found, "SciPy not found")
     @fixtures.single_context()
     def test_diffusion_scaling_amount(self, single_context):
         # perform the simulations
         data_arbor = self.simulate_arbor("inject_norm_amount")
-        data_ind = self.simulate_independent(concentration=False)
+        data_ind = self.simulate_independent(concentration=False, use_scipy=scipy_found)
 
         # test initial state
         self.assertTrue(
@@ -238,12 +246,11 @@ class TestDiffusionScaling(unittest.TestCase):
 
     # test_diffusion_scaling_concentration
     # Test: compare the concentration of diffusive particles in Arbor and independent implementation
-    @unittest.skipIf(not scipy_found, "SciPy not found")
     @fixtures.single_context()
     def test_diffusion_scaling_concentration(self, single_context):
         # perform the simulations
         data_arbor = self.simulate_arbor("inject_norm_concentration")
-        data_ind = self.simulate_independent(concentration=True)
+        data_ind = self.simulate_independent(concentration=True, use_scipy=scipy_found)
 
         # test initial state
         self.assertTrue(
