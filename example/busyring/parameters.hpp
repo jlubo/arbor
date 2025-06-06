@@ -58,6 +58,7 @@ ring_params read_options(int argc, char** argv) {
 
     ring_params params;
     if (argc<2) {
+        std::cerr << "Using defaults\n";
         return params;
     }
     if (argc>3) {
