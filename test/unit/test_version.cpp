@@ -32,6 +32,7 @@ TEST(version, libmatch) {
     string lib_arch = arb::arch;
     string lib_build_config = arb::build_config;
     string lib_full_build_id = arb::full_build_id;
+    string lib_arbor_config_str = arb::get_arbor_config_str();
     constexpr int lib_version_major = arb::version_major;
     constexpr int lib_version_minor = arb::version_minor;
     constexpr int lib_version_patch = arb::version_patch;
@@ -42,6 +43,10 @@ TEST(version, libmatch) {
     EXPECT_EQ(header_arch, lib_arch);
     EXPECT_EQ(header_build_config, lib_build_config);
     EXPECT_EQ(header_full_build_id, lib_full_build_id);
+    EXPECT_TRUE(lib_arbor_config_str.find(header_version) != std::string::npos);
+    EXPECT_TRUE(lib_arbor_config_str.find(header_source_id) != std::string::npos);
+    EXPECT_TRUE(lib_arbor_config_str.find(header_build_config) != std::string::npos);
+    EXPECT_TRUE(lib_arbor_config_str.find(header_arch) != std::string::npos);
     EXPECT_EQ(header_version_major, lib_version_major);
     EXPECT_EQ(header_version_minor, lib_version_minor);
     EXPECT_EQ(header_version_patch, lib_version_patch);

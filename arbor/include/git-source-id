@@ -45,6 +45,7 @@ cat << __end__
 #pragma once
 
 #include <arbor/export.hpp>
+#include <string>
 
 namespace arb {
 ARB_ARBOR_API extern const char* source_id;
@@ -56,6 +57,7 @@ constexpr int version_major = ${version_major};
 constexpr int version_minor = ${version_minor};
 constexpr int version_patch = ${version_patch};
 ARB_ARBOR_API extern const char* version_dev;
+ARB_ARBOR_API extern std::string get_arbor_config_str();
 }
 
 #define ARB_SOURCE_ID "${gitlog}"
